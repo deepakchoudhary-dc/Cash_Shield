@@ -11,7 +11,9 @@ class DataStore {
     this.filePath = filePath;
     this.seedFactory = seedFactory;
     this.initialized = false;
+    this.initPromise = null;
     this.queue = Promise.resolve();
+    this.snapshot = null;
   }
 
   async init() {
@@ -19,34 +21,22 @@ class DataStore {
       return;
     }
 
-    await fs.mkdir(path.dirname(this.filePath), { recursive: true });
-
-    try {
-      await fs.access(this.filePath);
-    } catch (error) {
-      const seedData = this.seedFactory();
-      await fs.writeFile(this.filePath, JSON.stringify(seedData, null, 2));
+    if (!this.initPromise) {
+      this.initPromise = this.#initialize();
     }
 
-    this.initialized = true;
+    await this.initPromise;
   }
 
   async read() {
     await this.init();
-    const raw = await fs.readFile(this.filePath, "utf8");
-
-    try {
-      return JSON.parse(raw);
-    } catch (error) {
-      error.message = `Failed to parse datastore file at ${this.filePath}: ${error.message}`;
-      throw error;
-    }
+    return cloneData(this.snapshot);
   }
 
   async write(mutator) {
     return this.#runExclusive(async () => {
-      const current = await this.read();
-      const draft = cloneData(current);
+      await this.init();
+      const draft = cloneData(this.snapshot);
       const maybeReplacement = await mutator(draft);
       const nextData = maybeReplacement === undefined ? draft : maybeReplacement;
 
@@ -56,8 +46,34 @@ class DataStore {
       };
 
       await this.#writeFileAtomically(JSON.stringify(nextData, null, 2));
+      this.snapshot = cloneData(nextData);
       return cloneData(nextData);
     });
+  }
+
+  async #initialize() {
+    await fs.mkdir(path.dirname(this.filePath), { recursive: true });
+
+    try {
+      await fs.access(this.filePath);
+    } catch (error) {
+      const seedData = this.seedFactory();
+      await fs.writeFile(this.filePath, JSON.stringify(seedData, null, 2));
+    }
+
+    this.snapshot = await this.#readFile();
+    this.initialized = true;
+  }
+
+  async #readFile() {
+    const raw = await fs.readFile(this.filePath, "utf8");
+
+    try {
+      return JSON.parse(raw);
+    } catch (error) {
+      error.message = `Failed to parse datastore file at ${this.filePath}: ${error.message}`;
+      throw error;
+    }
   }
 
   async #writeFileAtomically(contents) {

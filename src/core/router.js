@@ -1,4 +1,4 @@
-const { notFound } = require("./errors");
+const { methodNotAllowed, notFound } = require("./errors");
 
 function normalizePathname(pathname) {
   if (!pathname || pathname === "/") {
@@ -56,14 +56,18 @@ class Router {
   async handle(request, response) {
     const url = new URL(request.url, "http://localhost");
     const pathname = normalizePathname(url.pathname);
+    const requestMethod = request.method.toUpperCase();
     request.parsedUrl = url;
     request.query = parseQuery(url.searchParams);
 
-    const route = this.routes.find((candidate) => {
-      return candidate.method === request.method.toUpperCase() && candidate.regex.test(pathname);
-    });
+    const matchingRoutes = this.routes.filter((candidate) => candidate.regex.test(pathname));
+    const route = matchingRoutes.find((candidate) => candidate.method === requestMethod);
 
     if (!route) {
+      if (matchingRoutes.length > 0) {
+        throw methodNotAllowed(matchingRoutes.map((candidate) => candidate.method));
+      }
+
       throw notFound("The requested endpoint does not exist.");
     }
 

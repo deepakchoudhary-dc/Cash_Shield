@@ -1,16 +1,22 @@
 const { AppError, badRequest } = require("./errors");
+const { assertPlainObject } = require("./validation");
 
 const JSON_LIMIT_BYTES = 1024 * 1024;
 
-function sendJson(response, statusCode, payload) {
-  const body = JSON.stringify(payload, null, 2);
+function sendJson(response, statusCode, payload, headers = {}) {
+  const body = payload === undefined ? "" : JSON.stringify(payload, null, 2);
   response.writeHead(statusCode, {
-    "Content-Type": "application/json; charset=utf-8"
+    ...(body
+      ? {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      : {}),
+    ...headers
   });
   response.end(body);
 }
 
-async function readJsonBody(request) {
+async function readJsonBody(request, { requireObject = true } = {}) {
   if (request.body !== undefined) {
     return request.body;
   }
@@ -42,21 +48,33 @@ async function readJsonBody(request) {
 
   try {
     request.body = JSON.parse(rawBody);
+    if (requireObject) {
+      assertPlainObject(request.body);
+    }
     return request.body;
   } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+
     throw badRequest("Request body contains invalid JSON.");
   }
 }
 
 function sendError(response, error) {
   if (error instanceof AppError) {
-    sendJson(response, error.statusCode, {
-      error: {
-        code: error.code,
-        message: error.message,
-        details: error.details
-      }
-    });
+    sendJson(
+      response,
+      error.statusCode,
+      {
+        error: {
+          code: error.code,
+          message: error.message,
+          details: error.details
+        }
+      },
+      error.headers
+    );
     return;
   }
 

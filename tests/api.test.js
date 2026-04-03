@@ -10,14 +10,16 @@ async function createTestContext() {
   const dataFile = path.join(os.tmpdir(), `finance-backend-${crypto.randomUUID()}.json`);
   const { server, port } = await startServer({ port: 0, dataFile });
 
-  async function request(method, pathname, { token, body } = {}) {
+  async function request(method, pathname, { token, body, rawBody, headers } = {}) {
     const response = await fetch(`http://127.0.0.1:${port}${pathname}`, {
       method,
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...(body ? { "Content-Type": "application/json" } : {})
+        ...(body !== undefined || rawBody !== undefined ? { "Content-Type": "application/json" } : {}),
+        ...headers
       },
-      body: body ? JSON.stringify(body) : undefined
+      body:
+        rawBody !== undefined ? rawBody : body !== undefined ? JSON.stringify(body) : undefined
     });
 
     const payload = await response.json();
@@ -198,6 +200,100 @@ test("user management enforces validation and inactive users are blocked", async
     assert.equal(updateUser.response.status, 200);
     assert.equal(updateUser.payload.data.status, "inactive");
     assert.equal(updateUser.payload.data.role, "analyst");
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("record filters reject malformed query input instead of returning 500s", async () => {
+  const context = await createTestContext();
+
+  try {
+    const duplicateCategory = await context.request(
+      "GET",
+      "/records?category=Rent&category=Travel",
+      {
+        token: "admin-token"
+      }
+    );
+
+    assert.equal(duplicateCategory.response.status, 422);
+    assert.equal(duplicateCategory.payload.error.code, "VALIDATION_ERROR");
+
+    const invalidRange = await context.request(
+      "GET",
+      "/records?from=2026-03-31&to=2026-01-01",
+      {
+        token: "admin-token"
+      }
+    );
+
+    assert.equal(invalidRange.response.status, 422);
+    assert.equal(invalidRange.payload.error.code, "VALIDATION_ERROR");
+
+    const invalidSort = await context.request("GET", "/records?sort=sideways", {
+      token: "admin-token"
+    });
+
+    assert.equal(invalidSort.response.status, 422);
+    assert.equal(invalidSort.payload.error.code, "VALIDATION_ERROR");
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("transport layer rejects unsupported methods and malformed bodies", async () => {
+  const context = await createTestContext();
+
+  try {
+    const wrongMethod = await context.request("POST", "/health");
+
+    assert.equal(wrongMethod.response.status, 405);
+    assert.equal(wrongMethod.response.headers.get("allow"), "GET");
+
+    const invalidBodyType = await context.request("POST", "/records", {
+      token: "admin-token",
+      rawBody: JSON.stringify(["not", "an", "object"])
+    });
+
+    assert.equal(invalidBodyType.response.status, 400);
+    assert.equal(invalidBodyType.payload.error.code, "BAD_REQUEST");
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("dashboard trends and user responses stay strict and non-sensitive", async () => {
+  const context = await createTestContext();
+
+  try {
+    const usersResult = await context.request("GET", "/users", {
+      token: "admin-token"
+    });
+
+    assert.equal(usersResult.response.status, 200);
+    assert.equal("token" in usersResult.payload.data[0], false);
+
+    const invalidTrend = await context.request(
+      "GET",
+      "/dashboard/trends?groupBy=year&points=2",
+      {
+        token: "viewer-token"
+      }
+    );
+
+    assert.equal(invalidTrend.response.status, 422);
+    assert.equal(invalidTrend.payload.error.code, "VALIDATION_ERROR");
+
+    const invalidRecordUpdate = await context.request("PATCH", "/records/rec_001", {
+      token: "admin-token",
+      body: {
+        ignored: true
+      }
+    });
+
+    assert.equal(invalidRecordUpdate.response.status, 422);
+    assert.equal(invalidRecordUpdate.payload.error.code, "VALIDATION_ERROR");
   } finally {
     await context.cleanup();
   }

@@ -1,6 +1,9 @@
 const { validationError } = require("../../core/errors");
+const { addUnexpectedFieldErrors, readSingularQueryParam } = require("../../core/validation");
 
 const RECORD_TYPES = ["income", "expense"];
+const RECORD_FIELDS = ["amount", "type", "category", "date", "notes"];
+const RECORD_SORTS = ["asc", "desc"];
 
 function serializeRecord(record) {
   return {
@@ -47,6 +50,15 @@ function parseAmountToCents(value) {
   const [wholePart, fractionalPart = ""] = normalized.split(".");
   const cents = Number(wholePart) * 100 + Number(fractionalPart.padEnd(2, "0"));
 
+  if (!Number.isSafeInteger(cents)) {
+    throw validationError([
+      {
+        field: "amount",
+        message: "Amount is too large to store safely."
+      }
+    ]);
+  }
+
   if (cents <= 0) {
     throw validationError([
       {
@@ -62,6 +74,8 @@ function parseAmountToCents(value) {
 function validateRecordPayload(payload, { partial = false } = {}) {
   const errors = [];
   const next = {};
+
+  addUnexpectedFieldErrors(payload, RECORD_FIELDS, errors);
 
   if (!partial || Object.prototype.hasOwnProperty.call(payload, "amount")) {
     try {
@@ -133,56 +147,99 @@ function validateRecordPayload(payload, { partial = false } = {}) {
   return next;
 }
 
-function normalizeRecordFilters(query, options = {}) {
+function normalizeRecordCriteria(query) {
   const filters = {};
   const errors = [];
-  const defaultPage = options.defaultPage || 1;
-  const defaultPageSize = options.defaultPageSize || 10;
-  const maxPageSize = options.maxPageSize || 100;
 
-  if (query.type) {
-    if (!RECORD_TYPES.includes(query.type)) {
+  const type = readSingularQueryParam(query, "type", errors);
+  if (type !== undefined) {
+    if (!RECORD_TYPES.includes(type)) {
       errors.push({
         field: "type",
         message: "Filter type must be either income or expense."
       });
     } else {
-      filters.type = query.type;
+      filters.type = type;
     }
   }
 
-  if (query.category) {
-    filters.category = query.category.trim().toLowerCase();
+  const category = readSingularQueryParam(query, "category", errors);
+  if (category !== undefined) {
+    if (!category) {
+      errors.push({
+        field: "category",
+        message: "Category filter cannot be empty."
+      });
+    } else {
+      filters.category = category.toLowerCase();
+    }
   }
 
-  if (query.q) {
-    filters.search = query.q.trim().toLowerCase();
+  const search = readSingularQueryParam(query, "q", errors);
+  if (search !== undefined) {
+    if (!search) {
+      errors.push({
+        field: "q",
+        message: "Search query cannot be empty."
+      });
+    } else {
+      filters.search = search.toLowerCase();
+    }
   }
 
-  if (query.from) {
-    if (!isValidDateString(query.from)) {
+  const from = readSingularQueryParam(query, "from", errors);
+  if (from !== undefined) {
+    if (!isValidDateString(from)) {
       errors.push({
         field: "from",
         message: "From date must use YYYY-MM-DD format."
       });
     } else {
-      filters.from = query.from;
+      filters.from = from;
     }
   }
 
-  if (query.to) {
-    if (!isValidDateString(query.to)) {
+  const to = readSingularQueryParam(query, "to", errors);
+  if (to !== undefined) {
+    if (!isValidDateString(to)) {
       errors.push({
         field: "to",
         message: "To date must use YYYY-MM-DD format."
       });
     } else {
-      filters.to = query.to;
+      filters.to = to;
     }
   }
 
-  const page = query.page ? Number(query.page) : defaultPage;
-  const pageSize = query.pageSize ? Number(query.pageSize) : defaultPageSize;
+  if (filters.from && filters.to && filters.from > filters.to) {
+    errors.push({
+      field: "dateRange",
+      message: "From date must be earlier than or equal to to date."
+    });
+  }
+
+  if (errors.length > 0) {
+    throw validationError(errors);
+  }
+
+  return filters;
+}
+
+function normalizeRecordFilters(query, options = {}) {
+  const filters = {
+    ...normalizeRecordCriteria(query)
+  };
+  const errors = [];
+  const defaultPage = options.defaultPage || 1;
+  const defaultPageSize = options.defaultPageSize || 10;
+  const maxPageSize = options.maxPageSize || 100;
+
+  const pageValue = readSingularQueryParam(query, "page", errors);
+  const pageSizeValue = readSingularQueryParam(query, "pageSize", errors);
+  const sortValue = readSingularQueryParam(query, "sort", errors);
+
+  const page = pageValue === undefined ? defaultPage : Number(pageValue);
+  const pageSize = pageSizeValue === undefined ? defaultPageSize : Number(pageSizeValue);
 
   if (!Number.isInteger(page) || page < 1) {
     errors.push({
@@ -200,13 +257,26 @@ function normalizeRecordFilters(query, options = {}) {
 
   filters.page = page;
   filters.pageSize = pageSize;
-  filters.sort = query.sort === "asc" ? "asc" : "desc";
+  if (sortValue === undefined) {
+    filters.sort = "desc";
+  } else if (!RECORD_SORTS.includes(sortValue)) {
+    errors.push({
+      field: "sort",
+      message: "Sort must be either asc or desc."
+    });
+  } else {
+    filters.sort = sortValue;
+  }
 
   if (errors.length > 0) {
     throw validationError(errors);
   }
 
   return filters;
+}
+
+function normalizeDashboardRecordFilters(query) {
+  return normalizeRecordCriteria(query);
 }
 
 function applyRecordFilters(records, filters) {
@@ -261,6 +331,7 @@ module.exports = {
   RECORD_TYPES,
   applyRecordFilters,
   isValidDateString,
+  normalizeDashboardRecordFilters,
   normalizeRecordFilters,
   serializeRecord,
   sortRecords,

@@ -1,4 +1,5 @@
 const { validationError } = require("../../core/errors");
+const { readSingularQueryParam } = require("../../core/validation");
 
 function createDashboardService({ recordService }) {
   function summarizeTotals(records) {
@@ -91,13 +92,13 @@ function createDashboardService({ recordService }) {
   }
 
   async function getSummary(query) {
-    const records = await recordService.getRecordsForDashboard(query);
+    const { filters, records } = await recordService.getRecordsForDashboard(query);
     const totals = summarizeTotals(records);
 
     return {
       filters: {
-        from: query.from || null,
-        to: query.to || null
+        from: filters.from || null,
+        to: filters.to || null
       },
       totals: {
         totalIncome: Number((totals.totalIncome / 100).toFixed(2)),
@@ -111,19 +112,35 @@ function createDashboardService({ recordService }) {
   }
 
   async function getTrends(query) {
-    const groupBy = query.groupBy === "week" ? "week" : "month";
-    const points = query.points ? Number(query.points) : groupBy === "week" ? 8 : 6;
+    const errors = [];
+    const groupByValue = readSingularQueryParam(query, "groupBy", errors);
+    const pointsValue = readSingularQueryParam(query, "points", errors);
 
-    if (!Number.isInteger(points) || points < 1 || points > 52) {
-      throw validationError([
-        {
-          field: "points",
-          message: "Points must be an integer between 1 and 52."
-        }
-      ]);
+    let groupBy = "month";
+    if (groupByValue !== undefined) {
+      if (!["month", "week"].includes(groupByValue)) {
+        errors.push({
+          field: "groupBy",
+          message: "Group by must be either month or week."
+        });
+      } else {
+        groupBy = groupByValue;
+      }
     }
 
-    const records = await recordService.getRecordsForDashboard(query);
+    const points = pointsValue === undefined ? (groupBy === "week" ? 8 : 6) : Number(pointsValue);
+    if (!Number.isInteger(points) || points < 1 || points > 52) {
+      errors.push({
+        field: "points",
+        message: "Points must be an integer between 1 and 52."
+      });
+    }
+
+    if (errors.length > 0) {
+      throw validationError(errors);
+    }
+
+    const { records } = await recordService.getRecordsForDashboard(query);
 
     return {
       groupBy,

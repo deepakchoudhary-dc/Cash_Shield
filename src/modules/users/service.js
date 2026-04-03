@@ -1,10 +1,12 @@
 const crypto = require("node:crypto");
 const { badRequest, notFound, validationError } = require("../../core/errors");
+const { addUnexpectedFieldErrors, assertPlainObject } = require("../../core/validation");
 
 const USER_ROLES = ["viewer", "analyst", "admin"];
 const USER_STATUSES = ["active", "inactive"];
+const USER_MUTABLE_FIELDS = ["name", "email", "role", "status", "token"];
 
-function serializeUser(user, { includeToken = true } = {}) {
+function serializeUser(user, { includeToken = false } = {}) {
   const payload = {
     id: user.id,
     name: user.name,
@@ -29,6 +31,8 @@ function validateEmail(email) {
 function validateUserPayload(payload, { partial = false } = {}) {
   const errors = [];
   const next = {};
+
+  addUnexpectedFieldErrors(payload, USER_MUTABLE_FIELDS, errors);
 
   if (!partial || Object.prototype.hasOwnProperty.call(payload, "name")) {
     if (typeof payload.name !== "string" || payload.name.trim().length < 2) {
@@ -106,6 +110,7 @@ function createUserService({ store }) {
   }
 
   async function createUser(payload) {
+    assertPlainObject(payload);
     const validated = validateUserPayload(payload);
     const token = validated.token || crypto.randomBytes(16).toString("hex");
     const timestamp = new Date().toISOString();
@@ -132,10 +137,12 @@ function createUserService({ store }) {
       data.users.push(nextUser);
     });
 
-    return serializeUser(nextUser);
+    return serializeUser(nextUser, { includeToken: true });
   }
 
   async function updateUser(userId, payload, actingUser) {
+    assertPlainObject(payload);
+
     if (!payload || Object.keys(payload).length === 0) {
       throw validationError([
         {
@@ -184,7 +191,9 @@ function createUserService({ store }) {
       updatedUser = { ...user };
     });
 
-    return serializeUser(updatedUser);
+    return serializeUser(updatedUser, {
+      includeToken: Boolean(validated.token)
+    });
   }
 
   return {

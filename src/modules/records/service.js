@@ -1,7 +1,9 @@
 const crypto = require("node:crypto");
 const { notFound, validationError } = require("../../core/errors");
+const { assertPlainObject } = require("../../core/validation");
 const {
   applyRecordFilters,
+  normalizeDashboardRecordFilters,
   normalizeRecordFilters,
   serializeRecord,
   sortRecords,
@@ -42,6 +44,7 @@ function createRecordService({ store }) {
   }
 
   async function createRecord(payload, actor) {
+    assertPlainObject(payload);
     const validated = validateRecordPayload(payload);
     const timestamp = new Date().toISOString();
     const nextRecord = {
@@ -61,6 +64,8 @@ function createRecordService({ store }) {
   }
 
   async function updateRecord(recordId, payload) {
+    assertPlainObject(payload);
+
     if (!payload || Object.keys(payload).length === 0) {
       throw validationError([
         {
@@ -109,20 +114,12 @@ function createRecordService({ store }) {
   }
 
   async function getRecordsForDashboard(query = {}) {
-    const filters = normalizeRecordFilters(
-      {
-        ...query,
-        page: 1,
-        pageSize: 1000
-      },
-      {
-        defaultPage: 1,
-        defaultPageSize: 1000,
-        maxPageSize: 10000
-      }
-    );
+    const filters = normalizeDashboardRecordFilters(query);
     const data = await store.read();
-    return sortRecords(applyRecordFilters(data.records, filters), filters.sort);
+    return {
+      filters,
+      records: sortRecords(applyRecordFilters(data.records, filters), "desc")
+    };
   }
 
   return {

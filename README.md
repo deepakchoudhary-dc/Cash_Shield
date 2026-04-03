@@ -16,12 +16,12 @@ The implementation is split into:
 
 - `src/server.js`: server bootstrap
 - `src/app.js`: app composition and route registration
-- `src/core/*`: transport utilities, router, and error types
+- `src/core/*`: transport utilities, router, error types, and validation helpers
 - `src/middleware/auth.js`: mock authentication and RBAC
 - `src/modules/users/*`: user management logic
 - `src/modules/records/*`: financial record validation and CRUD
 - `src/modules/dashboard/*`: aggregation and trend logic
-- `src/storage/dataStore.js`: JSON persistence with serialized writes
+- `src/storage/dataStore.js`: JSON persistence with serialized writes and an in-process read cache
 - `src/seed/seedData.js`: default users and records for local testing
 
 ## Assumptions
@@ -97,7 +97,8 @@ Example create user body:
 }
 ```
 
-If `token` is omitted, one is generated automatically and returned in the response.
+If `token` is omitted, one is generated automatically and returned in the create response.
+For safety, `GET /users` and `PATCH /users/:id` do not expose stored tokens unless a token is explicitly rotated in the update request.
 
 ### Financial records
 
@@ -191,10 +192,14 @@ The API returns structured JSON errors:
 Implemented behaviors include:
 
 - invalid JSON handling
+- request bodies must be JSON objects
 - field-level validation
+- rejection of unknown fields on create and update
 - correct HTTP status codes
+- `405 Method Not Allowed` responses with an `Allow` header for valid routes using the wrong method
 - role-based authorization failures
-- invalid date and pagination checks
+- invalid date, date-range, sorting, grouping, and pagination checks
+- rejection of repeated scalar query parameters that would otherwise be ambiguous
 - protection against invalid operations such as updating a missing record
 
 ## Testing
@@ -210,8 +215,9 @@ The test suite covers:
 - role-based access rules
 - record CRUD and filtering
 - dashboard summary correctness
-- validation errors
+- validation errors and malformed request handling
 - inactive user access blocking
+- HTTP method semantics and non-sensitive user responses
 
 ## Tradeoffs
 
