@@ -1,4 +1,5 @@
 const { methodNotAllowed, notFound } = require("./errors");
+const { CORS_HEADERS } = require("./cors");
 
 function normalizePathname(pathname) {
   if (!pathname || pathname === "/") {
@@ -59,6 +60,12 @@ class Router {
     const requestMethod = request.method.toUpperCase();
     request.parsedUrl = url;
     request.query = parseQuery(url.searchParams);
+
+    if (requestMethod === "OPTIONS") {
+      response.writeHead(204, CORS_HEADERS);
+      response.end();
+      return;
+    }
 
     const matchingRoutes = this.routes.filter((candidate) => candidate.regex.test(pathname));
     const route = matchingRoutes.find((candidate) => candidate.method === requestMethod);

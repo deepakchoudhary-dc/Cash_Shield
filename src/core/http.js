@@ -1,5 +1,6 @@
 const { AppError, badRequest } = require("./errors");
 const { assertPlainObject } = require("./validation");
+const { CORS_HEADERS } = require("./cors");
 
 const JSON_LIMIT_BYTES = 1024 * 1024;
 
@@ -11,6 +12,7 @@ function sendJson(response, statusCode, payload, headers = {}) {
           "Content-Type": "application/json; charset=utf-8"
         }
       : {}),
+    ...CORS_HEADERS,
     ...headers
   });
   response.end(body);
