@@ -1,0 +1,158 @@
+:root {
+  font-family: "Inter", system-ui, sans-serif;
+  background-color: #0f172a;
+  color: #e2e8f0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+main {
+  min-height: 100vh;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1rem;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 2rem;
+}
+
+header p {
+  margin: 0.25rem 0 0;
+  color: #cbd5f5;
+}
+
+.token-box {
+  background: rgba(15, 23, 42, 0.8);
+  padding: 1rem;
+  border-radius: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border: 1px solid #1e293b;
+}
+
+input,
+select,
+textarea,
+button {
+  font: inherit;
+}
+
+input,
+select,
+textarea {
+  background: #0f172a;
+  color: inherit;
+  border: 1px solid #1e293b;
+  border-radius: 0.6rem;
+  padding: 0.5rem;
+}
+
+button {
+  background: linear-gradient(135deg, #38bdf8, #6366f1);
+  border: none;
+  border-radius: 0.6rem;
+  color: white;
+  cursor: pointer;
+  padding: 0.65rem 1rem;
+  font-weight: 600;
+}
+
+.card {
+  background: rgba(15, 23, 42, 0.8);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  border: 1px solid #1e293b;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.6);
+}
+
+.card-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.grids {
+  gap: 1rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+.list {
+  border-top: 1px solid #1e293b;
+  padding-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.list-item {
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid #1e293b;
+}
+
+.inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-end;
+  margin-bottom: 1rem;
+}
+
+.inline-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 140px;
+}
+
+.stacked-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
+}
+
+.summary-card {
+  background: #111827;
+  border-radius: 0.6rem;
+  padding: 1rem;
+  border: 1px solid #1e293b;
+}
+
+.message {
+  min-height: 1.25rem;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 720px) {
+  header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

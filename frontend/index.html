@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Finance Dashboard UI</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <h1>Finance Data Control</h1>
+          <p>Interact with roles, records, and dashboard analytics.</p>
+        </div>
+        <div class="token-box">
+          <label for="auth-token">Bearer Token</label>
+          <input
+            id="auth-token"
+            type="text"
+            value="admin-token"
+            placeholder="Paste token (admin/analyst/viewer)"
+          />
+          <button id="refresh-all">Refresh</button>
+        </div>
+      </header>
+
+      <section class="card" id="health">
+        <div class="card-title">
+          <h2>Health</h2>
+          <button id="refresh-health">Check</button>
+        </div>
+        <p>Status: <span id="health-status">unknown</span></p>
+        <p id="health-detail"></p>
+      </section>
+
+      <section class="card grids">
+        <div class="column">
+          <div class="card-title">
+            <h2>Users</h2>
+            <button id="refresh-users">Reload</button>
+          </div>
+          <div id="users-list" class="list"></div>
+        </div>
+        <div class="column">
+          <div class="card-title">
+            <h2>Records</h2>
+            <button id="refresh-records">Reload</button>
+          </div>
+          <form id="records-filter" class="inline-form">
+            <label>
+              Type
+              <select name="type">
+                <option value="">all</option>
+                <option value="income">income</option>
+                <option value="expense">expense</option>
+              </select>
+            </label>
+            <label>
+              Category
+              <input name="category" type="text" placeholder="Travel" />
+            </label>
+            <label>
+              Date from
+              <input name="from" type="date" />
+            </label>
+            <label>
+              Date to
+              <input name="to" type="date" />
+            </label>
+            <button type="submit">Filter</button>
+          </form>
+          <div id="records-list" class="list"></div>
+        </div>
+      </section>
+
+      <section class="card grids">
+        <div class="column">
+          <div class="card-title">
+            <h2>Create Record</h2>
+          </div>
+          <form id="record-form" class="stacked-form">
+            <label>
+              Amount
+              <input name="amount" type="number" step="0.01" min="0.01" required />
+            </label>
+            <label>
+              Type
+              <select name="type" required>
+                <option value="income">income</option>
+                <option value="expense">expense</option>
+              </select>
+            </label>
+            <label>
+              Category
+              <input name="category" type="text" required />
+            </label>
+            <label>
+              Date
+              <input name="date" type="date" required />
+            </label>
+            <label>
+              Notes
+              <textarea name="notes" rows="2"></textarea>
+            </label>
+            <button type="submit">Create</button>
+            <p id="record-form-message" class="message"></p>
+          </form>
+        </div>
+        <div class="column">
+          <div class="card-title">
+            <h2>Dashboard</h2>
+            <button id="refresh-dashboard">Reload</button>
+          </div>
+          <div id="dashboard-summary" class="summary"></div>
+          <h3>Monthly Trend</h3>
+          <div id="dashboard-trend" class="list"></div>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="main.js"></script>
+  </body>
+</html>

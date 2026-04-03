@@ -53,6 +53,16 @@ Optional environment variables:
 - `PORT`: server port
 - `DATA_FILE`: custom path for the JSON persistence file
 
+### Frontend Preview
+
+Open the static frontend in a separate shell:
+
+```bash
+npx http-server frontend -p 4000
+```
+
+Then browse `http://localhost:4000` while the backend runs on `http://localhost:3000`. Use the default bearer token (`admin-token`) to load all data and create records, or switch to `analyst-token`/`viewer-token` to demonstrate permission limits. The UI shows health, users, filtered records, dashboard totals, and a form to create a new record.
+
 ## Seed users
 
 These users are created automatically when the data file does not exist.
